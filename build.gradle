@@ -1,0 +1,89 @@
+buildscript {
+	ext.jooqVersion = '3.11.11'
+//	ext.jooqVersion = '3.12.1'
+}
+
+plugins {
+	id 'org.springframework.boot' version '2.2.1.RELEASE'
+	id 'io.spring.dependency-management' version '1.0.8.RELEASE'
+	id 'nu.studer.jooq' version '3.0.3'
+	id 'org.flywaydb.flyway' version "6.0.3"
+	id 'java'
+}
+group = 'org.jooq.issue'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '11'
+repositories {
+	mavenCentral()
+}
+dependencies {
+	implementation 'com.fasterxml.jackson.core:jackson-core'
+	implementation 'com.fasterxml.jackson.core:jackson-databind'
+	implementation 'org.springframework.boot:spring-boot-starter-jooq'
+	implementation 'org.flywaydb:flyway-core'
+
+	runtime 'org.postgresql:postgresql'
+	jooqRuntime "org.postgresql:postgresql"
+
+	testImplementation('org.springframework.boot:spring-boot-starter-test') {
+		exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+	}
+}
+test {
+	useJUnitPlatform()
+}
+
+task("doMigration") {
+	dependsOn processResources,processTestResources
+	doFirst {
+		println ">>>>>>>>>>> doing db_migration on ${project.'db.url'}"
+
+		flyway {
+			url = project.'db.url'
+			user = project.'db.user'
+			password = project.'db.password'
+			driver = project.'db.driver'
+			schemas = ["${project.'db.schema'}"]
+			baselineVersion = '0'
+			baselineOnMigrate = true
+			table = project.'db.migration.table'
+			locations = ["filesystem:$buildDir/resources/main/${project.'db.migration.location'}",
+						 "filesystem:$buildDir/resources/test/${project.'db.migration.location'}"]
+		}
+	}
+	finalizedBy flywayMigrate, flywayInfo
+}
+
+jooq {
+	version = "${jooqVersion}"
+	issue9474(sourceSets.main) {
+		jdbc {
+			url = project.'db.url'
+			user = project.'db.user'
+			password = project.'db.password'
+			driver = project.'db.driver'
+		}
+		generator {
+			name = 'org.jooq.codegen.DefaultGenerator'
+			database {
+				name = 'org.jooq.meta.postgres.PostgresDatabase'
+				inputSchema = project.'db.schema'
+				excludes = '_.*'
+				forcedTypes {
+					forcedType {
+						userType = 'com.fasterxml.jackson.databind.JsonNode'
+						binding = 'org.jooq4.issue.JsonbBinding11'
+//						binding = 'org.jooq4.issue.JsonbBinding12'
+						types = 'jsonb'
+					}
+				}
+			}
+			target {
+				packageName = 'jooq'
+			}
+			generate {
+				javaTimeTypes = true
+			}
+		}
+	}
+}

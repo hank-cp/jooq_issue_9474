@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: "jdbc:postgresql://localhost/postgres"
+    username: postgres
+    driver-class-name: "org.postgresql.Driver"
+  flyway:
+    enabled: false
+    table: _db_migration
+    locations: classpath:db_migration
+    schemas:
+      - postgres
+  jooq:
+    sql-dialect: postgres
+
+logging:
+  level:
+    org.jooq: DEBUG
+    org.jooq.Constants: ERROR
+    com.laxture.lolth: DEBUG
